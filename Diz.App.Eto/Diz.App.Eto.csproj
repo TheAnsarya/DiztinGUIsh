@@ -8,6 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <EditorConfigFiles Include=".editorconfig" />
+    </ItemGroup>
+
+    <ItemGroup>
       <PackageReference Include="JetBrains.Annotations">
         <Version>2023.3.0</Version>
       </PackageReference>

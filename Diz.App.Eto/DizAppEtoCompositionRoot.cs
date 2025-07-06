@@ -6,13 +6,12 @@ using LightInject;
 
 namespace Diz.App.Eto;
 
-[UsedImplicitly] public class DizAppEtoCompositionRoot : ICompositionRoot
-{
-    public void Compose(IServiceRegistry serviceRegistry)
-    {
-        serviceRegistry.RegisterFrom<DizAppCommonCompositionRoot>();
-        
-        serviceRegistry.Register<IDizApp, DizEtoApp>();
-        serviceRegistry.Register<ICommonGui, EtoCommonGui>();
-    }
+[UsedImplicitly]
+public class DizAppEtoCompositionRoot : ICompositionRoot {
+	public void Compose(IServiceRegistry serviceRegistry) {
+		serviceRegistry.RegisterFrom<DizAppCommonCompositionRoot>();
+
+		serviceRegistry.Register<IDizApp, DizEtoApp>();
+		serviceRegistry.Register<ICommonGui, EtoCommonGui>();
+	}
 }

@@ -1,10 +1,10 @@
-﻿$module = "Diz.PowerShell"
+$module = "Diz.PowerShell"
 $basepath = ".\"
 
 echo "Starting..."
 Import-Module "$($basepath)$($module).dll"
 
-WRite-Host "Current working dir---> $($pwd)'"
+Write-Host "Current working dir---> $($pwd)'"
 
 if ((Get-Command -module $module).Count -eq 0) { 
   Write-Host "WARNING: Couldn't find our module. (build issue?)" -ForegroundColor red

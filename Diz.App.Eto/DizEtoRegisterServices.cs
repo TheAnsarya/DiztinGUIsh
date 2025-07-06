@@ -1,11 +1,11 @@
 using Diz.App.Common;
 using Diz.Core.util;
-using Diz.Ui.Winforms;
+using Diz.Ui.Eto;
 using LightInject;
 
-namespace Diz.App.Winforms;
+namespace Diz.App.Eto;
 
-public static class DizWinformsRegisterServices {
+public static class DizEtoRegisterServices {
 	public static IServiceFactory CreateServiceFactoryAndRegisterTypes() {
 		var serviceProvider = DizServiceProvider.CreateServiceContainer();
 		RegisterDizUiServices(serviceProvider);
@@ -24,9 +24,9 @@ public static class DizWinformsRegisterServices {
 		serviceRegistry.RegisterFrom<DizAppCommonCompositionRoot>();
 
 		// pull in winforms-specific UI stuff:
-		serviceRegistry.RegisterFrom<DizUiWinformsCompositionRoot>();
+		serviceRegistry.RegisterFrom<DizUiEtoCompositionRoot>();
 
 		// finally, pull in OUR stuff, which is winforms-specific
-		serviceRegistry.RegisterFrom<DizAppWinformsCompositionRoot>();
+		serviceRegistry.RegisterFrom<DizAppEtoCompositionRoot>();
 	}
 }

@@ -1,23 +1,21 @@
-﻿namespace Diz.PowerShell;
+namespace Diz.PowerShell;
 
-public class DizPowershellLogger : IDizLogger
-{
-    private readonly IPowershellLogger powershellLogger;
+public class DizPowershellLogger : IDizLogger {
+	private readonly IPowershellLogger _powershellLogger;
 
-    public DizPowershellLogger(IPowershellLogger powershellLogger)
-    {
-        this.powershellLogger = powershellLogger;
-    }
+	public DizPowershellLogger(IPowershellLogger powershellLogger) {
+		this._powershellLogger = powershellLogger;
+	}
 
-    public void Info(string msg) => 
-        powershellLogger.WriteObject(msg);
+	public void Info(string msg) =>
+		_powershellLogger.WriteObject(msg);
 
-    public void Warn(string msg) => 
-        powershellLogger.WriteCommandDetail(msg);
+	public void Warn(string msg) =>
+		_powershellLogger.WriteCommandDetail(msg);
 
-    public void Error(string msg) =>
-        powershellLogger.WriteObject(msg);
+	public void Error(string msg) =>
+		_powershellLogger.WriteObject(msg);
 
-    public void Debug(string msg) => 
-        powershellLogger.WriteDebug(msg);
+	public void Debug(string msg) =>
+		_powershellLogger.WriteDebug(msg);
 }
