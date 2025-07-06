@@ -1,4 +1,4 @@
-﻿namespace Diz.Views;
+namespace Diz.Views;
 
 public class ProjectViewer
 {

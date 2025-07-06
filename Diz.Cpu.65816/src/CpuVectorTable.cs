@@ -1,4 +1,4 @@
-﻿using Diz.Cpu._65816.import;
+using Diz.Cpu._65816.import;
 
 namespace Diz.Cpu._65816;
 

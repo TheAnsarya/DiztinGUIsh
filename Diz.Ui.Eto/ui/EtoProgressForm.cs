@@ -1,4 +1,4 @@
-﻿using Diz.Controllers.interfaces;
+using Diz.Controllers.interfaces;
 using Eto.Drawing;
 using Eto.Forms;
 

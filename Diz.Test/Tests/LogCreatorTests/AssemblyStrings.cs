@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Diz.LogWriter;
 using FluentAssertions;
 using Xunit;

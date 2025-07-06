@@ -1,4 +1,4 @@
-﻿// everything here was migrated to AccessTests.cs
+// everything here was migrated to AccessTests.cs
 
 using System.Collections.Generic;
 using Diz.Core.Interfaces;

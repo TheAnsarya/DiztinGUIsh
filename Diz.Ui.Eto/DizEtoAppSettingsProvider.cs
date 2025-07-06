@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using Diz.Controllers.interfaces;
 
 namespace Diz.Ui.Eto;

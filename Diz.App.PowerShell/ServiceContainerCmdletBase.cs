@@ -1,6 +1,6 @@
-using System.Management.Automation;
 using Diz.Core.util;
 using LightInject;
+using System.Management.Automation;
 
 namespace Diz.PowerShell;
 

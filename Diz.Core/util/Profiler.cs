@@ -1,4 +1,4 @@
-﻿#define JETBRAINS_PROFILING_ENABLED
+#define JETBRAINS_PROFILING_ENABLED
 
 using System;
 using JetBrains.Profiler.SelfApi;

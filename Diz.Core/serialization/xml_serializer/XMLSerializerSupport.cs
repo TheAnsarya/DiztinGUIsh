@@ -1,4 +1,4 @@
-﻿using Diz.Core.model;
+using Diz.Core.model;
 using ExtendedXmlSerializer.Configuration;
 
 namespace Diz.Core.serialization.xml_serializer;

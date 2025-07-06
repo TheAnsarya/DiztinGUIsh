@@ -1,4 +1,4 @@
-﻿#if ENABLE_LEGACY_BINARY_SERIALIZER
+#if ENABLE_LEGACY_BINARY_SERIALIZER
 
 using System;
 using System.Diagnostics;

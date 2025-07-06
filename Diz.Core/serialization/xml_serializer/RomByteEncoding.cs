@@ -1,4 +1,4 @@
-﻿// #define EXTRA_DEBUG_CHECKS
+// #define EXTRA_DEBUG_CHECKS
 
 using System;
 using System.Collections.Generic;

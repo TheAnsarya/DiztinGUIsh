@@ -1,4 +1,4 @@
-﻿using Diz.Core.model.snes;
+using Diz.Core.model.snes;
 
 namespace Diz.Core.model.project;
 

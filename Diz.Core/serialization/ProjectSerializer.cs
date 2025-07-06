@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using Diz.Core.model;
 using Diz.Core.serialization.xml_serializer;

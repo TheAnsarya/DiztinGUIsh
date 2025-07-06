@@ -1,4 +1,4 @@
-﻿using Diz.Core.model;
+using Diz.Core.model;
 using Diz.Core.model.project;
 using Diz.Core.serialization;
 using Diz.Core.serialization.xml_serializer;

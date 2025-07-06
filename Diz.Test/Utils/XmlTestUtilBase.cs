@@ -1,4 +1,4 @@
-﻿using Diz.Test.Utils;
+using Diz.Test.Utils;
 using Xunit.Abstractions;
 
 namespace Diz.Test.Tests.SerializationTests

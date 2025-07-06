@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Diz.Core.model;
 using Diz.Core.serialization;
 using Diz.Test.Utils;

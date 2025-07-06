@@ -1,4 +1,4 @@
-﻿using Diz.Core.serialization;
+using Diz.Core.serialization;
 
 namespace Diz.Core.model;
 

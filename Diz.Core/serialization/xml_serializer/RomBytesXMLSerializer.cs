@@ -1,4 +1,4 @@
-﻿// define to do some extra checking as we save the data out
+// define to do some extra checking as we save the data out
 // #define EXTRA_DEBUG_CHECKS
 
 using System;
@@ -228,7 +228,7 @@ sealed class RomBytesSerializer : ISerializer<RomBytes>
         var lines = allLines.Split(new char[] {'\n'}, 3).ToList();
         var options = lines[1].Split(new char[] {','}).ToList();
         lines = lines[2].Split(new char[] {'\n'}).ToList();
-        if (lines[lines.Count - 1] == "")
+		if (lines[^1] == "")
             lines.RemoveAt(lines.Count - 1);
         return (lines, options);
     }

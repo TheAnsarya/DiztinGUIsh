@@ -1,4 +1,4 @@
-﻿namespace Diz.Core.Interfaces;
+namespace Diz.Core.Interfaces;
 
 // wonder if we could ditch this one by using extension methods
 public interface ISteppable

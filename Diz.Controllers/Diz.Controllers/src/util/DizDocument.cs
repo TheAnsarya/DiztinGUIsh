@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System.ComponentModel;
 using Diz.Controllers.controllers;
 using Diz.Controllers.interfaces;

@@ -1,4 +1,4 @@
-﻿namespace Diz.Import.bsnes.tracelog;
+namespace Diz.Import.bsnes.tracelog;
 
 public partial class BsnesTraceLogImporter
 {

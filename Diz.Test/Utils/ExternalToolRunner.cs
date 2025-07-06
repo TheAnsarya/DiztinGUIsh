@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Diz.Core.util;
 
 namespace Diz.Test.Utils

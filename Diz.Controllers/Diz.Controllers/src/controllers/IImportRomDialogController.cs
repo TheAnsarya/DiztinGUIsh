@@ -1,4 +1,4 @@
-﻿using Diz.Controllers.interfaces;
+using Diz.Controllers.interfaces;
 using Diz.Core.serialization;
 using Diz.Cpu._65816.import;
 

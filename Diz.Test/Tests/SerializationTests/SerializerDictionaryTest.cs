@@ -1,4 +1,4 @@
-﻿using System.Xml;
+using System.Xml;
 using Diz.Core.model;
 using Diz.Core.serialization.xml_serializer;
 using Diz.Test.Utils;

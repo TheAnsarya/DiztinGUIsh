@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Diz.Core.Interfaces;
 using Diz.Core.model;
 using Diz.Core.model.snes;

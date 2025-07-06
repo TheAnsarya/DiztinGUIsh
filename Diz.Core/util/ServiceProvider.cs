@@ -1,4 +1,4 @@
-﻿using LightInject;
+using LightInject;
 
 namespace Diz.Core.util;
 

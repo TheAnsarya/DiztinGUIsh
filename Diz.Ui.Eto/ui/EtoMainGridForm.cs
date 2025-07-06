@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using Diz.Controllers.controllers;
 using Diz.Controllers.interfaces;
 using Diz.Core.model;

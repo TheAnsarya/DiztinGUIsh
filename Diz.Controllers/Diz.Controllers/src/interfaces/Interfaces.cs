@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Diz.Controllers.controllers;
 using Diz.Controllers.util;
 using Diz.Core.model;

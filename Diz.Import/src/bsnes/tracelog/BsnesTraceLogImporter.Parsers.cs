@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Diz.Core.util;
 
 namespace Diz.Import.bsnes.tracelog;

@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Diz.Core;
 using Diz.Core.export;
 using Diz.Core.Interfaces;

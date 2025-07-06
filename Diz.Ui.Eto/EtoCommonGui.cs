@@ -1,4 +1,4 @@
-﻿using Diz.Controllers.interfaces;
+using Diz.Controllers.interfaces;
 using Eto.Forms;
 
 namespace Diz.Ui.Eto;

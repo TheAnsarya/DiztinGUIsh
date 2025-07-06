@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using Diz.Core.Interfaces;
 using Diz.Core.serialization;
 using JetBrains.Annotations;

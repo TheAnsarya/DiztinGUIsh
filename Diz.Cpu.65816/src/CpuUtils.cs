@@ -1,4 +1,4 @@
-﻿namespace Diz.Cpu._65816;
+namespace Diz.Cpu._65816;
 
 public class CpuUtils
 {

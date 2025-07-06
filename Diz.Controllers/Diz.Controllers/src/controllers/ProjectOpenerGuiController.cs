@@ -1,4 +1,4 @@
-﻿namespace Diz.Controllers.controllers;
+namespace Diz.Controllers.controllers;
 
 // this is for Diz3, re-enable if still useful later.
 

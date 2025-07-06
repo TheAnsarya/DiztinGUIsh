@@ -1,4 +1,4 @@
-﻿// #define PROFILING
+// #define PROFILING
 
 using System.Diagnostics;
 using System.Net;

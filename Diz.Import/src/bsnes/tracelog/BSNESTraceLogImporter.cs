@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Diz.Core.Interfaces;
 using Diz.Cpu._65816;
 

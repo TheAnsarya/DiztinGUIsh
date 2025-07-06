@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Diz.Core;
 using Diz.Core.Interfaces;
 using Diz.Core.model;

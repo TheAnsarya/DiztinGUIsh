@@ -1,4 +1,4 @@
-﻿using Diz.Core.util;
+using Diz.Core.util;
 using FluentAssertions;
 using Xunit;
 

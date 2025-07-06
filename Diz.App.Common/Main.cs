@@ -9,8 +9,9 @@ public static class DizAppCommon {
 		var dizApp = serviceFactory.GetInstance<IDizApp>();
 
 		var fileToOpen = "";
-		if (args.Length > 0)
+		if (args.Length > 0) {
 			fileToOpen = args[0];
+		}
 
 		dizApp.Run(fileToOpen);
 	}

@@ -1,7 +1,7 @@
-﻿using System.Diagnostics;
-using Diz.Controllers.interfaces;
+﻿using Diz.Controllers.interfaces;
 using Diz.Ui.Eto.ui;
 using Eto.Forms;
+using System.Diagnostics;
 
 namespace Diz.App.Eto;
 

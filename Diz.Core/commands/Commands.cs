@@ -1,4 +1,4 @@
-﻿namespace Diz.Core.commands;
+namespace Diz.Core.commands;
 
 public class MarkCommand
 {

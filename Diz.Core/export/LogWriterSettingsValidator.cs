@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using Diz.Core.util;
 using FluentValidation;
 

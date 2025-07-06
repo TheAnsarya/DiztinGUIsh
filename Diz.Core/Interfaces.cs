@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using Diz.Core.model;
 using Diz.Core.model.snes;

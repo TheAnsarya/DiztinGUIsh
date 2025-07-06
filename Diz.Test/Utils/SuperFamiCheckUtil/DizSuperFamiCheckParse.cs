@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Sprache;
 
 namespace Diz.Test.Utils.SuperFamiCheckUtil

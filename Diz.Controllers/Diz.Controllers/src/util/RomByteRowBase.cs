@@ -1,4 +1,4 @@
-﻿// using Diz.Core.model.byteSources;
+// using Diz.Core.model.byteSources;
 
 #if DIZ_3_BRANCH
 namespace Diz.Controllers.util

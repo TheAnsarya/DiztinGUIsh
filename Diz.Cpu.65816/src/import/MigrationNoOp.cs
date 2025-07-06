@@ -1,4 +1,4 @@
-﻿using Diz.Core.serialization.xml_serializer;
+using Diz.Core.serialization.xml_serializer;
 using JetBrains.Annotations;
 
 namespace Diz.Cpu._65816.import;

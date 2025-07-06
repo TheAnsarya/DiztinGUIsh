@@ -16,8 +16,9 @@ public class ProjectFileReader : IProjectFileOpener {
 		filename = projectFilename;
 
 	public Project? Read() {
-		if (string.IsNullOrEmpty(filename))
+		if (string.IsNullOrEmpty(filename)) {
 			return null;
+		}
 
 		var openResult = projectFileManager.Open(filename);
 		return openResult?.Root?.Project ?? null;

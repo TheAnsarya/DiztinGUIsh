@@ -1,4 +1,4 @@
-﻿namespace Diz.Core.Interfaces;
+namespace Diz.Core.Interfaces;
 
 public interface ICommentTextProvider
 {

@@ -21,8 +21,9 @@ public class ProjectFileAssemblyExporter : IProjectFileAssemblyExporter {
 
 	private Project? OpenProjectFile(string projectFileName) {
 		var project = _projectFileSource.ReadProjectFromFile(projectFileName);
-		if (project == null)
+		if (project == null) {
 			return null;
+		}
 
 		_logger.Debug($"Loaded project, rom is: {project.AttachedRomFilename}");
 		return project;

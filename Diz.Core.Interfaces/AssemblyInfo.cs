@@ -1,2 +1,2 @@
-﻿// probably won't ever need this 
+// probably won't ever need this 
 // [assembly: CompositionRootType(typeof(ServiceRegistrationCoreInterfaces))]

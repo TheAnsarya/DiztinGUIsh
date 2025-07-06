@@ -1,11 +1,11 @@
 #nullable enable
 
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Management.Automation;
 using Diz.Core;
 using JetBrains.Annotations;
 using LightInject;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Management.Automation;
 
 namespace Diz.PowerShell.Cmdlets;
 
@@ -17,11 +17,13 @@ public class BuildAssemblyFilesCmdlet : ServiceContainerCmdletBase {
 	public string[]? ProjectNames { get; set; } = null;
 
 	protected override void ProcessRecord() {
-		if (ProjectNames == null)
+		if (ProjectNames == null) {
 			return;
+		}
 
-		if (ProjectNames.Length <= 0)
+		if (ProjectNames.Length <= 0) {
 			return;
+		}
 
 		foreach (var projectName in ProjectNames) {
 			BuildAssembly(projectName);

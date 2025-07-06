@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Diz.Test.Utils.SuperFamiCheckUtil;
 using FluentAssertions;
 using Sprache;
