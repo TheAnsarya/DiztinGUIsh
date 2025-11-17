@@ -17,6 +17,7 @@ using Diz.Import;
 using Diz.Import.bizhawk;
 using Diz.Import.bsnes.tracelog;
 using Diz.Import.bsnes.usagemap;
+using Diz.Import.mesen.tracelog;
 using Diz.LogWriter;
 using Diz.LogWriter.util;
 using JetBrains.Annotations;
@@ -349,6 +350,48 @@ public class ProjectController(
         importer.CopyTempGeneratedCommentsIntoMainSnesData();
 
         return importer.CurrentStats.NumRomBytesModified;
+    }
+
+    /// <summary>
+    /// Import live trace data from Mesen2 DiztinGUIsh server.
+    /// Connects to running Mesen2 instance and streams execution traces in real-time.
+    /// </summary>
+    /// <param name="host">Mesen2 server hostname (default: localhost)</param>
+    /// <param name="port">Mesen2 server port (default: 9998)</param>
+    /// <param name="cancellationToken">Cancellation token to stop streaming</param>
+    /// <returns>Number of ROM bytes modified during streaming session</returns>
+    public async Task<long> ImportMesenTraceLive(string host = "localhost", int port = 9998, CancellationToken cancellationToken = default)
+    {
+        using var importer = new MesenTraceLogImporter(Project.Data.GetSnesApi());
+        
+        // Attempt to connect to Mesen2 server
+        var connected = await importer.ConnectAsync(host, port);
+        if (!connected)
+        {
+            throw new InvalidOperationException($"Failed to connect to Mesen2 server at {host}:{port}. Is Mesen2 running with DiztinGUIsh server enabled?");
+        }
+
+        try
+        {
+            // Stream until cancellation requested
+            // The importer handles all message processing in background
+            while (!cancellationToken.IsCancellationRequested && importer.IsConnected)
+            {
+                await Task.Delay(100, cancellationToken); // Check every 100ms
+            }
+        }
+        finally
+        {
+            // Always disconnect and copy comments when done
+            importer.Disconnect();
+            importer.CopyTempGeneratedCommentsIntoMainSnesData();
+        }
+
+        var bytesModified = importer.CurrentStats.NumRomBytesModified;
+        if (bytesModified > 0)
+            MarkChanged();
+
+        return bytesModified;
     }
         
     public void CloseProject()
