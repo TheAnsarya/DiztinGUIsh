@@ -1178,6 +1178,7 @@
           "JetBrains.Profiler.SelfApi": "[2.5.0, )",
           "LightInject": "[6.6.4, )",
           "SharpZipLib": "[1.4.2, )",
+          "System.Configuration.ConfigurationManager": "[8.0.0, )",
           "System.Diagnostics.Tracing": "[4.3.0, )",
           "System.Resources.Extensions": "[8.0.0, )",
           "System.Text.Encoding.CodePages": "[8.0.0, )"

@@ -2,7 +2,9 @@
 
 using Diz.Controllers.controllers;
 using Diz.Controllers.interfaces;
+using Diz.Controllers.services;
 using Diz.Controllers.util;
+using Diz.Core.Interfaces;
 using JetBrains.Annotations;
 using LightInject;
 
@@ -17,6 +19,9 @@ public class DizControllersCompositionRoot : ICompositionRoot
         serviceRegistry.Register<ILogCreatorSettingsEditorController, LogCreatorSettingsEditorController>("AssemblyExporterSettingsController");
         serviceRegistry.Register<IImportRomDialogController, ImportRomDialogController>("ImportRomDialogController");
         serviceRegistry.Register<ILargeFilesReaderController, LargeFilesReader>("LargeFileReaderProgressController");
+        
+        // Mesen2 integration controller
+        serviceRegistry.Register<IMesen2IntegrationController, Mesen2IntegrationController>(new PerContainerLifetime());
         
         serviceRegistry.EnableAutoFactories();
         serviceRegistry.RegisterAutoFactory<IControllerFactory>();

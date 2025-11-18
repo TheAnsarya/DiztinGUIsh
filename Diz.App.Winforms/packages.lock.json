@@ -362,6 +362,15 @@
         "resolved": "7.0.0",
         "contentHash": "dQPcs0U1IKnBdRDBkrCTi1FoajSTBzLcVTpjO4MBCMC7f4pDOIPzgBoX8JjG7X6uZRJ8EBxsi8+DR1JuwjnzOQ=="
       },
+      "System.Configuration.ConfigurationManager": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "JlYi9XVvIREURRUlGMr1F6vOFLk7YSY4p1vHo4kX3tQ0AGrjqlRWHDi66ImHhy6qwXBG3BJ6Y1QlYQ+Qz6Xgww==",
+        "dependencies": {
+          "System.Diagnostics.EventLog": "8.0.0",
+          "System.Security.Cryptography.ProtectedData": "8.0.0"
+        }
+      },
       "System.Console": {
         "type": "Transitive",
         "resolved": "4.3.0",
@@ -395,6 +404,11 @@
           "System.Runtime": "4.3.0",
           "System.Threading": "4.3.0"
         }
+      },
+      "System.Diagnostics.EventLog": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "fdYxcRjQqTTacKId/2IECojlDSFvp7LP5N78+0z/xH7v/Tuw5ZAxu23Y6PTCRinqyu2ePx+Gn1098NC6jM6d+A=="
       },
       "System.Diagnostics.Tools": {
         "type": "Transitive",
@@ -917,6 +931,11 @@
           "System.Threading.Tasks": "4.3.0"
         }
       },
+      "System.Security.Cryptography.ProtectedData": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "+TUFINV2q2ifyXauQXRwy4CiBhqvDEDZeVJU7qfxya4aRYOKzVBpN+4acx25VcPB9ywUN6C0n8drWl110PhZEg=="
+      },
       "System.Security.Cryptography.X509Certificates": {
         "type": "Transitive",
         "resolved": "4.3.0",
@@ -1094,6 +1113,7 @@
           "JetBrains.Profiler.SelfApi": "[2.5.0, )",
           "LightInject": "[6.6.4, )",
           "SharpZipLib": "[1.4.2, )",
+          "System.Configuration.ConfigurationManager": "[8.0.0, )",
           "System.Diagnostics.Tracing": "[4.3.0, )",
           "System.Resources.Extensions": "[8.0.0, )",
           "System.Text.Encoding.CodePages": "[8.0.0, )"
@@ -1451,6 +1471,11 @@
           "System.Runtime": "4.3.0",
           "runtime.win.System.Diagnostics.Debug": "4.3.0"
         }
+      },
+      "System.Diagnostics.EventLog": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "fdYxcRjQqTTacKId/2IECojlDSFvp7LP5N78+0z/xH7v/Tuw5ZAxu23Y6PTCRinqyu2ePx+Gn1098NC6jM6d+A=="
       },
       "System.Diagnostics.Tools": {
         "type": "Transitive",
@@ -2308,6 +2333,11 @@
           "System.Runtime": "4.3.0",
           "runtime.win.System.Diagnostics.Debug": "4.3.0"
         }
+      },
+      "System.Diagnostics.EventLog": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "fdYxcRjQqTTacKId/2IECojlDSFvp7LP5N78+0z/xH7v/Tuw5ZAxu23Y6PTCRinqyu2ePx+Gn1098NC6jM6d+A=="
       },
       "System.Diagnostics.Tools": {
         "type": "Transitive",
