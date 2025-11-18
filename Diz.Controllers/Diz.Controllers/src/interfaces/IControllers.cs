@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Threading;
+using System.Threading.Tasks;
 using Diz.Controllers.controllers;
 using Diz.Core;
 using Diz.Core.commands;
@@ -92,6 +94,7 @@ public interface ITraceLogImporters
     void ImportBizHawkCdl(string filename);
     long ImportBsnesUsageMap(string fileName);
     long ImportBsnesTraceLogs(string[] fileNames);
+    Task<long> ImportMesenTraceLive(string host, int port, CancellationToken cancellationToken);
 }
 
 public interface IProjectNavigation

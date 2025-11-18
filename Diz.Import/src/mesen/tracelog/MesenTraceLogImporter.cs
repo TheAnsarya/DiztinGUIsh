@@ -93,13 +93,13 @@ public class MesenTraceLogImporter : IDisposable
     /// </summary>
     public void CopyTempGeneratedCommentsIntoMainSnesData()
     {
-        if (_snesData?.Comments == null)
+        if (_snesData?.Data.Comments == null)
             return;
 
         var count = 0;
         foreach (var kvp in _tracelogCommentsGenerated)
         {
-            _snesData.Comments[kvp.Key] = kvp.Value;
+            _snesData.Data.Comments[kvp.Key] = kvp.Value;
             count++;
         }
         
