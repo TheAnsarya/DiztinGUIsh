@@ -3,4 +3,4 @@
 	url = https://github.com/DizTools/Diz.LogWriter
 [submodule "Diz.Ui.Winforms"]
 	path = Diz.Ui.Winforms
-	url = https://github.com/DizTools/Diz.Ui.Winforms
+	url = https://github.com/TheAnsarya/Diz.Ui.Winforms
