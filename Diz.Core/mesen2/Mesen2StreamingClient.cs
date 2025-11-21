@@ -14,25 +14,37 @@ namespace Diz.Core.Mesen2
     /// </summary>
     internal enum Mesen2MessageType : byte
     {
-        Handshake = 0,
-        HandshakeAck = 1,
-        ConfigStream = 2,
-        ExecTrace = 3,
-        CdlUpdate = 4,
-        MemoryAccess = 5,
-        CpuState = 6,
-        CpuStateRequest = 7,
-        LabelAdd = 8,
-        LabelUpdate = 9,
-        LabelDelete = 10,
-        LabelSyncRequest = 11,
-        LabelSyncResponse = 12,
-        BreakpointAdd = 13,
-        BreakpointRemove = 14,
-        MemoryDumpRequest = 15,
-        MemoryDumpResponse = 16,
-        Heartbeat = 17,
-        Disconnect = 18
+        Handshake = 0x01,
+        HandshakeAck = 0x02,
+        ConfigStream = 0x03,
+        Heartbeat = 0x04,
+        Disconnect = 0x05,
+        
+        ExecTrace = 0x10,
+        ExecTraceBatch = 0x11,
+        
+        MemoryAccess = 0x12,
+        CdlUpdate = 0x13,
+        CdlSnapshot = 0x14,
+        
+        CpuState = 0x20,
+        CpuStateRequest = 0x21,
+        
+        LabelAdd = 0x30,
+        LabelUpdate = 0x31,
+        LabelDelete = 0x32,
+        LabelSyncRequest = 0x33,
+        LabelSyncResponse = 0x34,
+        
+        BreakpointAdd = 0x40,
+        BreakpointRemove = 0x41,
+        BreakpointHit = 0x42,
+        BreakpointList = 0x43,
+        
+        MemoryDumpRequest = 0x50,
+        MemoryDumpResponse = 0x51,
+        
+        Error = 0xFF
     }
 
     /// <summary>
@@ -154,6 +166,23 @@ namespace Diz.Core.Mesen2
                 if (await PerformHandshakeAsync().ConfigureAwait(false))
                 {
                     Status = Mesen2ConnectionStatus.HandshakeComplete;
+                    
+                    // Send streaming configuration automatically after handshake
+                    // This is required for Mesen2 to start streaming data
+                    bool configSent = await SetStreamingConfigAsync(
+                        enableExecTrace: true,
+                        enableMemoryAccess: true,
+                        enableCdlUpdates: true,
+                        traceFrameInterval: 1,  // Send every frame
+                        maxTracesPerFrame: 10000 // Max traces per frame
+                    ).ConfigureAwait(false);
+                    
+                    if (!configSent)
+                    {
+                        await DisconnectAsync().ConfigureAwait(false);
+                        return false;
+                    }
+                    
                     return true;
                 }
                 else
@@ -177,12 +206,28 @@ namespace Diz.Core.Mesen2
 
         public async Task DisconnectAsync()
         {
+            lock (_lockObject)
+            {
+                // Prevent double-disconnect
+                if (Status == Mesen2ConnectionStatus.Disconnected)
+                    return;
+                    
+                Status = Mesen2ConnectionStatus.Disconnected;
+            }
+
             try
             {
-                // Send disconnect message if connected
-                if (IsConnected)
+                // Send disconnect message if we have a network stream
+                if (_networkStream != null && _tcpClient?.Connected == true)
                 {
-                    await SendMessageAsync(Mesen2MessageType.Disconnect, Array.Empty<byte>()).ConfigureAwait(false);
+                    try
+                    {
+                        await SendMessageAsync(Mesen2MessageType.Disconnect, Array.Empty<byte>()).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Ignore errors during disconnect message send
+                    }
                 }
             }
             catch
@@ -190,8 +235,17 @@ namespace Diz.Core.Mesen2
                 // Ignore errors during disconnect
             }
 
-            _cancellationTokenSource?.Cancel();
+            // Cancel the receive loop
+            try
+            {
+                _cancellationTokenSource?.Cancel();
+            }
+            catch
+            {
+                // Ignore cancellation errors
+            }
 
+            // Wait for receive task to complete
             if (_receiveTask != null)
             {
                 try
@@ -204,15 +258,31 @@ namespace Diz.Core.Mesen2
                 }
             }
 
-            _networkStream?.Close();
-            _tcpClient?.Close();
+            // Clean up resources
+            try
+            {
+                _networkStream?.Close();
+                _networkStream?.Dispose();
+            }
+            catch { }
+
+            try
+            {
+                _tcpClient?.Close();
+                _tcpClient?.Dispose();
+            }
+            catch { }
+
+            try
+            {
+                _cancellationTokenSource?.Dispose();
+            }
+            catch { }
 
             _networkStream = null;
             _tcpClient = null;
             _cancellationTokenSource = null;
             _receiveTask = null;
-
-            Status = Mesen2ConnectionStatus.Disconnected;
         }
 
         private async Task<bool> PerformHandshakeAsync()
@@ -274,7 +344,10 @@ namespace Diz.Core.Mesen2
                 {
                     // Read message header (5 bytes)
                     if (!await ReadExactAsync(buffer, 0, 5, cancellationToken).ConfigureAwait(false))
+                    {
+                        // Connection closed gracefully
                         break;
+                    }
 
                     var messageType = (Mesen2MessageType)buffer[0];
                     var payloadLength = BitConverter.ToInt32(buffer, 1);
@@ -291,23 +364,41 @@ namespace Diz.Core.Mesen2
                     if (payloadLength > 0)
                     {
                         if (!await ReadExactAsync(payload, 0, payloadLength, cancellationToken).ConfigureAwait(false))
+                        {
+                            // Connection closed while reading payload
                             break;
+                        }
                     }
 
                     Interlocked.Increment(ref _messagesReceived);
                     Interlocked.Add(ref _bytesReceived, 5 + payloadLength);
 
                     // Process message
-                    await ProcessReceivedMessageAsync(messageType, payload).ConfigureAwait(false);
+                    try
+                    {
+                        await ProcessReceivedMessageAsync(messageType, payload).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log message processing error but continue receiving
+                        System.Diagnostics.Debug.WriteLine($"Error processing message type {messageType}: {ex.Message}");
+                    }
                 }
             }
-            catch (Exception)
+            catch (OperationCanceledException)
+            {
+                // Expected when cancellation is requested
+            }
+            catch (Exception ex)
             {
                 // Connection lost or error occurred
+                System.Diagnostics.Debug.WriteLine($"Receive loop error: {ex.Message}");
             }
-
-            // Connection ended
-            await DisconnectAsync().ConfigureAwait(false);
+            finally
+            {
+                // Connection ended - ensure proper cleanup
+                await DisconnectAsync().ConfigureAwait(false);
+            }
         }
 
         private async Task<bool> ReadExactAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
@@ -356,6 +447,7 @@ namespace Diz.Core.Mesen2
                         break;
 
                     case Mesen2MessageType.ExecTrace:
+                    case Mesen2MessageType.ExecTraceBatch:
                         var traceEntries = ParseExecutionTrace(payload);
                         if (traceEntries.Count > 0)
                         {
@@ -426,55 +518,53 @@ namespace Diz.Core.Mesen2
                 using var stream = new MemoryStream(payload);
                 using var reader = new BinaryReader(stream);
                 
-                while (stream.Position < stream.Length)
+                // Check if this is a batch message (has 6-byte header)
+                if (payload.Length >= 6)
                 {
-                    var pc = ReadUInt24(reader); // 24-bit PC
-                    var opcode = reader.ReadByte();
-                    var operandLow = reader.ReadByte();
-                    var operandHigh = reader.ReadByte();
-                    var accumulator = reader.ReadUInt16();
-                    var xRegister = reader.ReadUInt16();
-                    var yRegister = reader.ReadUInt16();
-                    var stackPointer = reader.ReadUInt16();
-                    var directPage = reader.ReadUInt16();
-                    var dataBank = reader.ReadByte();
-                    var processorStatus = reader.ReadByte();
-                    var emulationMode = reader.ReadBoolean();
-                    var cycleCount = reader.ReadUInt64();
-
-                    // Create instruction bytes array
-                    var instructionBytes = operandHigh != 0 
-                        ? new byte[] { opcode, operandLow, operandHigh }
-                        : operandLow != 0 
-                            ? new byte[] { opcode, operandLow }
-                            : new byte[] { opcode };
-
-                    // Create CPU state
-                    var cpuState = new Mesen2CpuState
-                    {
-                        A = accumulator,
-                        X = xRegister,
-                        Y = yRegister,
-                        S = stackPointer,
-                        D = directPage,
-                        DB = dataBank,
-                        PC = pc,
-                        P = processorStatus,
-                        EmulationMode = emulationMode,
-                        Timestamp = DateTime.UtcNow
-                    };
-
-                    // Create trace entry with proper structure
-                    var entry = new Mesen2TraceEntry
-                    {
-                        PC = pc,
-                        Instruction = instructionBytes,
-                        Disassembly = $"${pc:X6}: {opcode:X2}", // Basic disassembly, could be enhanced
-                        CpuState = cpuState,
-                        Timestamp = DateTime.UtcNow
-                    };
+                    // Read batch header
+                    var frameNumber = reader.ReadUInt32();
+                    var entryCount = reader.ReadUInt16();
                     
-                    entries.Add(entry);
+                    // Parse each trace entry (15 bytes each)
+                    for (int i = 0; i < entryCount && stream.Position + 15 <= stream.Length; i++)
+                    {
+                        var pc = reader.ReadUInt32();         // 4 bytes (24-bit padded)
+                        var opcode = reader.ReadByte();       // 1 byte
+                        var mFlag = reader.ReadByte();        // 1 byte
+                        var xFlag = reader.ReadByte();        // 1 byte
+                        var dbRegister = reader.ReadByte();   // 1 byte
+                        var dpRegister = reader.ReadUInt16(); // 2 bytes
+                        var effectiveAddr = reader.ReadUInt32(); // 4 bytes (24-bit padded)
+                        
+                        // Mask PC to 24-bit
+                        pc &= 0xFFFFFF;
+                        effectiveAddr &= 0xFFFFFF;
+                        
+                        // Create instruction bytes array (just opcode for now)
+                        var instructionBytes = new byte[] { opcode };
+                        
+                        // Create CPU state with available information
+                        var cpuState = new Mesen2CpuState
+                        {
+                            PC = pc,
+                            DB = dbRegister,
+                            D = dpRegister,
+                            Timestamp = DateTime.UtcNow,
+                            EmulationMode = false
+                        };
+                        
+                        // Create trace entry
+                        var entry = new Mesen2TraceEntry
+                        {
+                            PC = pc,
+                            Instruction = instructionBytes,
+                            Disassembly = $"${pc:X6}: {opcode:X2}",
+                            CpuState = cpuState,
+                            Timestamp = DateTime.UtcNow
+                        };
+                        
+                        entries.Add(entry);
+                    }
                 }
             }
             catch (Exception)
