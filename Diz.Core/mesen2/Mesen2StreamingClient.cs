@@ -147,28 +147,37 @@ namespace Diz.Core.Mesen2
 
             try
             {
+                Console.WriteLine($"[Mesen2StreamingClient] ConnectAsync starting - Host: {Host}, Port: {Port}, Timeout: {TimeoutMs}ms");
                 Status = Mesen2ConnectionStatus.Connecting;
 
                 _tcpClient = new TcpClient();
                 _tcpClient.ReceiveTimeout = TimeoutMs;
                 _tcpClient.SendTimeout = TimeoutMs;
 
+                Console.WriteLine($"[Mesen2StreamingClient] TcpClient created, attempting connection...");
                 await _tcpClient.ConnectAsync(Host, Port).ConfigureAwait(false);
+                Console.WriteLine($"[Mesen2StreamingClient] TcpClient.ConnectAsync completed successfully!");
+                
                 _networkStream = _tcpClient.GetStream();
+                Console.WriteLine($"[Mesen2StreamingClient] NetworkStream obtained");
 
                 Status = Mesen2ConnectionStatus.Connected;
 
+                Console.WriteLine($"[Mesen2StreamingClient] Starting receive loop task...");
                 // Start receive loop
                 _cancellationTokenSource = new CancellationTokenSource();
                 _receiveTask = Task.Run(() => ReceiveLoopAsync(_cancellationTokenSource.Token));
 
+                Console.WriteLine($"[Mesen2StreamingClient] Beginning handshake...");
                 // Perform handshake
                 if (await PerformHandshakeAsync().ConfigureAwait(false))
                 {
+                    Console.WriteLine($"[Mesen2StreamingClient] Handshake successful!");
                     Status = Mesen2ConnectionStatus.HandshakeComplete;
                     
                     // Send streaming configuration automatically after handshake
                     // This is required for Mesen2 to start streaming data
+                    Console.WriteLine($"[Mesen2StreamingClient] Sending streaming configuration...");
                     bool configSent = await SetStreamingConfigAsync(
                         enableExecTrace: true,
                         enableMemoryAccess: true,
@@ -179,20 +188,25 @@ namespace Diz.Core.Mesen2
                     
                     if (!configSent)
                     {
+                        Console.WriteLine($"[Mesen2StreamingClient] ERROR: Failed to send streaming configuration!");
                         await DisconnectAsync().ConfigureAwait(false);
                         return false;
                     }
                     
+                    Console.WriteLine($"[Mesen2StreamingClient] Connection fully established and configured!");
                     return true;
                 }
                 else
                 {
+                    Console.WriteLine($"[Mesen2StreamingClient] ERROR: Handshake failed!");
                     await DisconnectAsync().ConfigureAwait(false);
                     return false;
                 }
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[Mesen2StreamingClient] EXCEPTION during connect: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"[Mesen2StreamingClient] Stack trace: {ex.StackTrace}");
                 Status = Mesen2ConnectionStatus.Error;
                 ConnectionStatusChanged?.Invoke(this, new Mesen2ConnectionEventArgs 
                 { 

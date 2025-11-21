@@ -60,26 +60,33 @@ public class MesenLiveTraceClient : IDisposable
 
         try
         {
+            Console.WriteLine($"[MesenLiveTraceClient] ConnectAsync starting - Host: {host}, Port: {port}, Timeout: {ConnectTimeoutMs}ms");
             _tcpClient = new TcpClient();
             _tcpClient.ReceiveTimeout = ReceiveTimeoutMs;
             
+            Console.WriteLine($"[MesenLiveTraceClient] TcpClient created, attempting connection...");
             // Connect with timeout
             using var timeoutCts = new CancellationTokenSource(ConnectTimeoutMs);
             await _tcpClient.ConnectAsync(host, port, timeoutCts.Token);
             
+            Console.WriteLine($"[MesenLiveTraceClient] Connection successful! Getting network stream...");
             _stream = _tcpClient.GetStream();
             ConnectedHost = host;
             ConnectedPort = port;
             ConnectionTime = DateTime.Now;
             
+            Console.WriteLine($"[MesenLiveTraceClient] Starting receive loop...");
             // Start receive loop
             _cancellationTokenSource = new CancellationTokenSource();
             _receiveTask = ReceiveLoopAsync(_cancellationTokenSource.Token);
             
+            Console.WriteLine($"[MesenLiveTraceClient] ConnectAsync completed successfully!");
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine($"[MesenLiveTraceClient] EXCEPTION during connect: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"[MesenLiveTraceClient] Stack trace: {ex.StackTrace}");
             CleanupConnection();
             return false;
         }
