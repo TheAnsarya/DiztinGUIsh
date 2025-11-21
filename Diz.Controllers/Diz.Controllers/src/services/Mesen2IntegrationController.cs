@@ -139,75 +139,123 @@ namespace Diz.Controllers.services
             }
         }
 
-        public void ShowStatusWindow()
+    public void ShowStatusWindow()
+    {
+        if (_client == null)
         {
-            if (_client == null)
-            {
-                _gui?.ShowError("Mesen2 client not initialized");
-                return;
-            }
-
-            // Show the advanced status window
-            try
-            {
-                // This would be implemented by the UI layer (WinForms, etc.)
-                _gui?.ShowMessage("Status window would be shown here.");
-            }
-            catch (Exception ex)
-            {
-                _gui?.ShowError($"Failed to open status window: {ex.Message}");
-            }
+            _gui?.ShowError("Mesen2 client not initialized");
+            return;
         }
 
-        public void ShowTraceViewer()
+        // Show the advanced status window with real connection details
+        try
         {
-            if (_client == null)
-            {
-                _gui?.ShowError("Mesen2 client not initialized");
-                return;
-            }
-
-            // Show the execution trace viewer
-            try
-            {
-                // This would be implemented by the UI layer (WinForms, etc.)
-                _gui?.ShowMessage("Trace viewer would be shown here.");
-            }
-            catch (Exception ex)
-            {
-                _gui?.ShowError($"Failed to open trace viewer: {ex.Message}");
-            }
+            var status = $"Mesen2 Connection Status\n\n" +
+                        $"Connected: {_client.IsConnected}\n" +
+                        $"Server: {_configuration.DefaultHost}:{_configuration.DefaultPort}\n" +
+                        $"Timeout: {_configuration.ConnectionTimeoutMs}ms\n" +
+                        $"Auto-Reconnect: {(_configuration.AutoReconnect ? "Enabled" : "Disabled")}\n" +
+                        $"Connection Attempts: {_reconnectAttempts}\n\n" +
+                        $"Status: {(_client.IsConnected ? "Active and streaming" : "Disconnected")}";
+            
+            _gui?.ShowMessage(status);
+        }
+        catch (Exception ex)
+        {
+            _gui?.ShowError($"Failed to open status window: {ex.Message}");
+        }
+    }    public void ShowTraceViewer()
+    {
+        if (_client == null)
+        {
+            _gui?.ShowError("Mesen2 client not initialized");
+            return;
         }
 
-        public void ShowDashboard()
+        // Show the execution trace viewer information
+        try
         {
-            // Show the integration dashboard
-            try
-            {
-                // This would be implemented by the UI layer (WinForms, etc.)
-                _gui?.ShowMessage("Dashboard would be shown here.");
-            }
-            catch (Exception ex)
-            {
-                _gui?.ShowError($"Failed to open dashboard: {ex.Message}");
-            }
+            var message = "Execution Trace Viewer\n\n" +
+                         "The trace viewer displays real-time CPU execution data from Mesen2.\n\n" +
+                         "Features:\n" +
+                         "• Live CPU register states (A, X, Y, PC, SP, P)\n" +
+                         "• Instruction disassembly\n" +
+                         "• Memory bank tracking (DB, DP)\n" +
+                         "• M/X flag monitoring\n" +
+                         "• Effective address calculation\n\n" +
+                         $"Status: {(_client.IsConnected ? "Receiving trace data" : "Not connected")}\n\n" +
+                         "To view traces, ensure:\n" +
+                         "1. Mesen2 is running with a ROM loaded\n" +
+                         "2. Connection is established\n" +
+                         "3. DiztinGUIsh server is active in Mesen2";
+            
+            _gui?.ShowMessage(message);
         }
-
-        public void ShowAdvancedConfigurationDialog()
+        catch (Exception ex)
         {
-            // Show the advanced configuration dialog
-            try
-            {
-                // This would be implemented by the UI layer (WinForms, etc.)
-                _gui?.ShowMessage("Advanced configuration dialog would be shown here.");
-            }
-            catch (Exception ex)
-            {
-                _gui?.ShowError($"Failed to open advanced configuration: {ex.Message}");
-            }
+            _gui?.ShowError($"Failed to open trace viewer: {ex.Message}");
         }
-
-        private void StartAutoConnectTimer()
+    }    public void ShowDashboard()
+    {
+        // Show the integration dashboard
+        try
+        {
+            var connectionStatus = _client?.IsConnected == true ? "✓ Connected" : "✗ Disconnected";
+            var dashboard = $"Mesen2 Integration Dashboard\n\n" +
+                           $"═══════════════════════════════════════\n" +
+                           $"Connection Status: {connectionStatus}\n" +
+                           $"Server: {_configuration.DefaultHost}:{_configuration.DefaultPort}\n" +
+                           $"Timeout: {_configuration.ConnectionTimeoutMs}ms\n" +
+                           $"═══════════════════════════════════════\n\n" +
+                           $"Quick Actions:\n" +
+                           $"• Use 'Connect to Mesen2' (Ctrl+F6) to establish connection\n" +
+                           $"• Use 'Show Status Window' to view detailed statistics\n" +
+                           $"• Use 'Show Trace Viewer' (Ctrl+F7) to inspect execution traces\n" +
+                           $"• Use 'Configuration' to adjust connection settings\n\n" +
+                           $"Import Options:\n" +
+                           $"• File → Import → From Mesen2 (Live Stream)\n" +
+                           $"• File → Import → From Mesen2 (Binary Files)\n\n" +
+                           $"Current Configuration:\n" +
+                           $"• Auto-Reconnect: {(_configuration.AutoReconnect ? "Enabled" : "Disabled")}\n" +
+                           $"• Reconnect Delay: {_configuration.AutoReconnectDelayMs}ms\n" +
+                           $"• Max Attempts: {_configuration.MaxReconnectAttempts}\n" +
+                           $"• Connection Attempts: {_reconnectAttempts}";
+            
+            _gui?.ShowMessage(dashboard);
+        }
+        catch (Exception ex)
+        {
+            _gui?.ShowError($"Failed to open dashboard: {ex.Message}");
+        }
+    }    public void ShowAdvancedConfigurationDialog()
+    {
+        // Show the advanced configuration dialog
+        try
+        {
+            var config = $"Advanced Mesen2 Configuration\n\n" +
+                        $"═══════════════════════════════════════\n" +
+                        $"Current Settings:\n" +
+                        $"═══════════════════════════════════════\n" +
+                        $"Host: {_configuration.DefaultHost}\n" +
+                        $"Port: {_configuration.DefaultPort}\n" +
+                        $"Connection Timeout: {_configuration.ConnectionTimeoutMs}ms\n" +
+                        $"Auto-Reconnect: {(_configuration.AutoReconnect ? "Enabled" : "Disabled")}\n" +
+                        $"Reconnect Delay: {_configuration.AutoReconnectDelayMs}ms\n" +
+                        $"Max Reconnect Attempts: {_configuration.MaxReconnectAttempts}\n\n" +
+                        $"Current Session:\n" +
+                        $"• Connection Attempts: {_reconnectAttempts}\n" +
+                        $"• Auto-Connect Enabled: {AutoConnectEnabled}\n" +
+                        $"• Auto-Connect Interval: {AutoConnectIntervalSeconds}s\n\n" +
+                        $"Note: To modify these settings, use the\n" +
+                        $"Configuration dialog (Tools → Mesen2 Integration → Configuration)";
+            
+            _gui?.ShowMessage(config);
+        }
+        catch (Exception ex)
+        {
+            _gui?.ShowError($"Failed to open advanced configuration: {ex.Message}");
+        }
+    }        private void StartAutoConnectTimer()
         {
             if (_autoConnectTimer != null)
                 return;
