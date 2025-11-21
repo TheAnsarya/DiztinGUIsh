@@ -114,15 +114,18 @@ public class MesenTraceLogImporter : IDisposable
         LastHandshake = handshake;
         
         // Validate protocol compatibility
-        if (handshake.ProtocolVersion != 1)
-        {
-            // Protocol version mismatch
-        }
+        var protocolCompatible = handshake.ProtocolVersionMajor == 1 && handshake.ProtocolVersionMinor == 0;
         
         // Validate ROM if we have one loaded
-        if (_romSizeCached > 0 && handshake.RomSize != _romSizeCached)
+        var romCompatible = _romSizeCached <= 0 || handshake.RomSize == _romSizeCached;
+        
+        // Send acknowledgment 
+        var accepted = protocolCompatible && romCompatible;
+        _ = Task.Run(async () => await _client.SendHandshakeAckAsync(accepted, "DiztinGUIsh v2.0"));
+        
+        if (!accepted)
         {
-            // ROM size mismatch
+            // Could raise an error event or disconnect
         }
     }
 
@@ -267,9 +270,9 @@ public class MesenTraceLogImporter : IDisposable
 
         // Update M flag if changed
         var currentMFlag = _snesData.GetMFlag(romOffset);
-        if (currentMFlag != trace.MFlag)
+        if (currentMFlag != trace.MFlagBool)
         {
-            _snesData.SetMFlag(romOffset, trace.MFlag);
+            _snesData.SetMFlag(romOffset, trace.MFlagBool);
             updated = true;
             
             lock (_statsLock)
@@ -280,9 +283,9 @@ public class MesenTraceLogImporter : IDisposable
 
         // Update X flag if changed
         var currentXFlag = _snesData.GetXFlag(romOffset);
-        if (currentXFlag != trace.XFlag)
+        if (currentXFlag != trace.XFlagBool)
         {
-            _snesData.SetXFlag(romOffset, trace.XFlag);
+            _snesData.SetXFlag(romOffset, trace.XFlagBool);
             updated = true;
             
             lock (_statsLock)
@@ -293,9 +296,10 @@ public class MesenTraceLogImporter : IDisposable
 
         // Update Data Bank if changed
         var currentDb = _snesData.GetDataBank(romOffset);
-        if (currentDb != trace.DataBank)
+        if (currentDb != trace.DBRegister)
         {
-            _snesData.SetDataBank(romOffset, trace.DataBank);
+            _snesData.SetDataBank(romOffset, trace.DBRegister);
+            updated = true;
             updated = true;
             
             lock (_statsLock)
@@ -306,9 +310,9 @@ public class MesenTraceLogImporter : IDisposable
 
         // Update Direct Page if changed
         var currentDp = _snesData.GetDirectPage(romOffset);
-        if (currentDp != trace.DirectPage)
+        if (currentDp != trace.DPRegister)
         {
-            _snesData.SetDirectPage(romOffset, trace.DirectPage);
+            _snesData.SetDirectPage(romOffset, trace.DPRegister);
             updated = true;
             
             lock (_statsLock)

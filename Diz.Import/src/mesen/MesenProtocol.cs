@@ -2,74 +2,101 @@ namespace Diz.Import.mesen;
 
 /// <summary>
 /// Mesen2 Protocol message types for DiztinGUIsh live streaming.
-/// This maps to the C++ DiztinguishProtocol.h in Mesen2.
+/// This maps exactly to the C++ DiztinguishProtocol.h in Mesen2.
+/// IMPORTANT: These values must match the C++ enum exactly!
 /// </summary>
 public enum MesenMessageType : byte
 {
-    // Connection Management
+    // Connection lifecycle (matches C++ DiztinguishProtocol.h)
     Handshake = 0x01,
-    Disconnect = 0x02,
-    Error = 0x03,
+    HandshakeAck = 0x02,
+    ConfigStream = 0x03,
+    Heartbeat = 0x04,
+    Disconnect = 0x05,
     
-    // Execution Tracing  
-    ExecTrace = 0x04,
+    // Execution trace streaming (matches C++ DiztinguishProtocol.h)
+    ExecTrace = 0x10,
+    ExecTraceBatch = 0x11,
     
-    // CDL (Code/Data Logger) Updates
-    CdlUpdate = 0x05,
+    // Memory and CDL (matches C++ DiztinguishProtocol.h)
+    MemoryAccess = 0x12,
+    CdlUpdate = 0x13,
+    CdlSnapshot = 0x14,
     
-    // Memory Operations
-    MemoryDump = 0x06,
-    MemoryWrite = 0x07,
-    MemoryRead = 0x08,
+    // CPU state (matches C++ DiztinguishProtocol.h)
+    CpuState = 0x20,
+    CpuStateRequest = 0x21,
     
-    // Debugging
-    Breakpoint = 0x09,
-    CpuState = 0x0A,
+    // Label synchronization (matches C++ DiztinguishProtocol.h)
+    LabelAdd = 0x30,
+    LabelUpdate = 0x31,
+    LabelDelete = 0x32,
+    LabelSyncRequest = 0x33,
+    LabelSyncResponse = 0x34,
     
-    // Labels and Symbols
-    LabelAdd = 0x0B,
-    LabelUpdate = 0x0C,
-    LabelDelete = 0x0D,
+    // Breakpoint control (matches C++ DiztinguishProtocol.h)
+    BreakpointAdd = 0x40,
+    BreakpointRemove = 0x41,
+    BreakpointHit = 0x42,
+    BreakpointList = 0x43,
     
-    // Frame Tracking
-    FrameStart = 0x0E,
-    FrameEnd = 0x0F
+    // Error handling (matches C++ DiztinguishProtocol.h)
+    Error = 0xFF
 }
 
 /// <summary>
 /// Handshake message from Mesen2 server.
-/// Sent immediately upon connection to identify protocol version.
+/// Sent immediately upon connection to identify protocol version and ROM info.
+/// This EXACTLY matches the C++ HandshakeMessage struct (268 bytes total).
 /// </summary>
 public struct MesenHandshakeMessage
 {
-    public byte ProtocolVersion;      // Currently 1
-    public uint EmulatorVersionMajor; // e.g., 0 for v0.7.0
-    public uint EmulatorVersionMinor; // e.g., 7 for v0.7.0
-    public uint EmulatorVersionPatch; // e.g., 0 for v0.7.0
-    public ushort ServerPort;         // TCP port server is listening on
-    public uint RomSize;              // Size of loaded ROM in bytes
-    public uint RomCrc32;             // CRC32 checksum of ROM
+    public ushort ProtocolVersionMajor; // uint16_t (2 bytes)
+    public ushort ProtocolVersionMinor; // uint16_t (2 bytes) 
+    public uint RomChecksum;            // uint32_t CRC32 (4 bytes)
+    public uint RomSize;                // uint32_t (4 bytes)
+    public string RomName;              // char[256] null-terminated (256 bytes)
     
     public override string ToString() => 
-        $"Protocol v{ProtocolVersion}, Mesen2 v{EmulatorVersionMajor}.{EmulatorVersionMinor}.{EmulatorVersionPatch}, Port {ServerPort}, ROM {RomSize} bytes (CRC32: 0x{RomCrc32:X8})";
+        $"Protocol v{ProtocolVersionMajor}.{ProtocolVersionMinor}, ROM: '{RomName}' ({RomSize} bytes, CRC32: 0x{RomChecksum:X8})";
 }
 
 /// <summary>
-/// CPU execution trace message.
-/// Sent for each CPU instruction executed with SNES-specific flags.
+/// Handshake acknowledgment message (DiztinGUIsh → Mesen2).
+/// This EXACTLY matches the C++ HandshakeAckMessage struct.
+/// </summary>
+public struct MesenHandshakeAckMessage
+{
+    public ushort ProtocolVersionMajor; // uint16_t (2 bytes)
+    public ushort ProtocolVersionMinor; // uint16_t (2 bytes)
+    public byte Accepted;               // uint8_t 0=rejected, 1=accepted (1 byte)
+    public string ClientName;           // char[64] e.g., "DiztinGUIsh v2.0" (64 bytes)
+    
+    public override string ToString() => 
+        $"HandshakeAck: Protocol v{ProtocolVersionMajor}.{ProtocolVersionMinor}, {(Accepted != 0 ? "Accepted" : "Rejected")}, Client: '{ClientName}'";
+}
+
+/// <summary>
+/// CPU execution trace entry.
+/// This EXACTLY matches the C++ ExecTraceEntry struct (15 bytes total).
+/// Sent as part of ExecTraceBatch messages.
 /// </summary>
 public struct MesenExecTraceMessage
 {
-    public uint PC;              // Program Counter (24-bit SNES address)
-    public byte Opcode;          // Instruction opcode
-    public bool MFlag;           // M flag (accumulator size: true=8bit, false=16bit)
-    public bool XFlag;           // X flag (index size: true=8bit, false=16bit)  
-    public byte DataBank;        // Data Bank register (DB)
-    public ushort DirectPage;    // Direct Page register (D)
-    public uint EffectiveAddr;   // Effective address for operand (if applicable)
+    public uint PC;              // uint32_t Program Counter (24-bit, padded) (4 bytes)
+    public byte Opcode;          // uint8_t Opcode byte (1 byte)
+    public byte MFlag;           // uint8_t M flag (0/1) (1 byte)
+    public byte XFlag;           // uint8_t X flag (0/1) (1 byte)
+    public byte DBRegister;      // uint8_t Data Bank register (1 byte)
+    public ushort DPRegister;    // uint16_t Direct Page register (2 bytes)
+    public uint EffectiveAddr;   // uint32_t Calculated effective address (24-bit, padded) (4 bytes)
+    
+    // Convenience properties for boolean flags
+    public bool MFlagBool => MFlag != 0;
+    public bool XFlagBool => XFlag != 0;
     
     public override string ToString() => 
-        $"PC:${PC:X6} Op:${Opcode:X2} M:{(MFlag ? "8" : "16")} X:{(XFlag ? "8" : "16")} DB:${DataBank:X2} D:${DirectPage:X4} EA:${EffectiveAddr:X6}";
+        $"PC:${PC:X6} Op:${Opcode:X2} M:{(MFlagBool ? "8" : "16")} X:{(XFlagBool ? "8" : "16")} DB:${DBRegister:X2} DP:${DPRegister:X4} EA:${EffectiveAddr:X6}";
 }
 
 /// <summary>

@@ -1,5 +1,7 @@
 using System.Net.Sockets;
 using System.Net;
+using System.Text;
+using System.Linq;
 
 namespace Diz.Import.mesen.tracelog;
 
@@ -114,6 +116,49 @@ public class MesenLiveTraceClient : IDisposable
     }
 
     /// <summary>
+    /// Send handshake acknowledgment to Mesen2 server.
+    /// </summary>
+    public async Task<bool> SendHandshakeAckAsync(bool accepted = true, string clientName = "DiztinGUIsh")
+    {
+        if (!IsConnected || _stream == null)
+            return false;
+
+        try
+        {
+            // Create handshake ack message (69 bytes total)
+            var ackMessage = new MesenHandshakeAckMessage
+            {
+                ProtocolVersionMajor = 1,
+                ProtocolVersionMinor = 0,
+                Accepted = (byte)(accepted ? 1 : 0),
+                ClientName = clientName.PadRight(64, '\0').Substring(0, 64) // Ensure exactly 64 bytes
+            };
+
+            // Build binary payload (5 bytes for handshake ack)
+            var payload = new byte[5 + 64]; // 2 + 2 + 1 + 64 = 69 bytes total
+            BitConverter.GetBytes(ackMessage.ProtocolVersionMajor).CopyTo(payload, 0);
+            BitConverter.GetBytes(ackMessage.ProtocolVersionMinor).CopyTo(payload, 2);
+            payload[4] = ackMessage.Accepted;
+            Encoding.ASCII.GetBytes(ackMessage.ClientName).CopyTo(payload, 5);
+
+            // Build message header (5 bytes: type + length)
+            var header = new byte[5];
+            header[0] = (byte)MesenMessageType.HandshakeAck;
+            BitConverter.GetBytes((uint)payload.Length).CopyTo(header, 1);
+
+            // Send header + payload
+            await _stream.WriteAsync(header.Concat(payload).ToArray());
+            await _stream.FlushAsync();
+
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Main message receive loop. Runs on background thread.
     /// </summary>
     private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
@@ -194,7 +239,7 @@ public class MesenLiveTraceClient : IDisposable
             switch (messageType)
             {
                 case MesenMessageType.Handshake:
-                    if (payload != null && payload.Length >= 21) // Expected handshake size
+                    if (payload != null && payload.Length >= 268) // Expected handshake size (268 bytes)
                     {
                         var handshake = ParseHandshakeMessage(payload);
                         HandshakeReceived?.Invoke(this, handshake);
@@ -202,7 +247,8 @@ public class MesenLiveTraceClient : IDisposable
                     break;
 
                 case MesenMessageType.ExecTrace:
-                    if (payload != null && payload.Length >= 14) // Expected trace size
+                case MesenMessageType.ExecTraceBatch:
+                    if (payload != null && payload.Length >= 15) // Expected trace entry size (15 bytes)
                     {
                         var trace = ParseExecTraceMessage(payload);
                         ExecTraceReceived?.Invoke(this, trace);
@@ -225,15 +271,6 @@ public class MesenLiveTraceClient : IDisposable
                     }
                     break;
 
-                case MesenMessageType.FrameStart:
-                case MesenMessageType.FrameEnd:
-                    if (payload != null && payload.Length >= 4)
-                    {
-                        var frame = ParseFrameMessage(payload, messageType == MesenMessageType.FrameStart);
-                        FrameReceived?.Invoke(this, frame);
-                    }
-                    break;
-
                 case MesenMessageType.Error:
                     if (payload != null && payload.Length >= 2)
                     {
@@ -251,35 +288,47 @@ public class MesenLiveTraceClient : IDisposable
 
     /// <summary>
     /// Parse handshake message from binary data.
+    /// Matches C++ HandshakeMessage struct exactly (268 bytes):
+    /// - uint16_t protocolVersionMajor (2 bytes)
+    /// - uint16_t protocolVersionMinor (2 bytes) 
+    /// - uint32_t romChecksum (4 bytes)
+    /// - uint32_t romSize (4 bytes)
+    /// - char romName[256] (256 bytes)
     /// </summary>
     private static MesenHandshakeMessage ParseHandshakeMessage(byte[] data)
     {
         return new MesenHandshakeMessage
         {
-            ProtocolVersion = data[0],
-            EmulatorVersionMajor = BitConverter.ToUInt32(data, 1),
-            EmulatorVersionMinor = BitConverter.ToUInt32(data, 5),
-            EmulatorVersionPatch = BitConverter.ToUInt32(data, 9),
-            ServerPort = BitConverter.ToUInt16(data, 13),
-            RomSize = BitConverter.ToUInt32(data, 15),
-            RomCrc32 = BitConverter.ToUInt32(data, 19)
+            ProtocolVersionMajor = BitConverter.ToUInt16(data, 0),      // bytes 0-1
+            ProtocolVersionMinor = BitConverter.ToUInt16(data, 2),      // bytes 2-3
+            RomChecksum = BitConverter.ToUInt32(data, 4),               // bytes 4-7
+            RomSize = BitConverter.ToUInt32(data, 8),                   // bytes 8-11
+            RomName = System.Text.Encoding.ASCII.GetString(data, 12, 256).TrimEnd('\0') // bytes 12-267
         };
     }
 
     /// <summary>
     /// Parse execution trace message from binary data.
+    /// Matches C++ ExecTraceEntry struct exactly (15 bytes):
+    /// - uint32_t pc (4 bytes) 
+    /// - uint8_t opcode (1 byte)
+    /// - uint8_t mFlag (1 byte)
+    /// - uint8_t xFlag (1 byte) 
+    /// - uint8_t dbRegister (1 byte)
+    /// - uint16_t dpRegister (2 bytes)
+    /// - uint32_t effectiveAddr (4 bytes)
     /// </summary>
     private static MesenExecTraceMessage ParseExecTraceMessage(byte[] data)
     {
         return new MesenExecTraceMessage
         {
-            PC = BitConverter.ToUInt32(data, 0) & 0xFFFFFF, // 24-bit address
-            Opcode = data[4],
-            MFlag = data[5] != 0,
-            XFlag = data[6] != 0,
-            DataBank = data[7],
-            DirectPage = BitConverter.ToUInt16(data, 8),
-            EffectiveAddr = BitConverter.ToUInt32(data, 10) & 0xFFFFFF // 24-bit address
+            PC = BitConverter.ToUInt32(data, 0) & 0xFFFFFF, // bytes 0-3 (24-bit address)
+            Opcode = data[4],                                // byte 4
+            MFlag = data[5],                                 // byte 5 (0 or 1)
+            XFlag = data[6],                                 // byte 6 (0 or 1) 
+            DBRegister = data[7],                            // byte 7
+            DPRegister = BitConverter.ToUInt16(data, 8),     // bytes 8-9
+            EffectiveAddr = BitConverter.ToUInt32(data, 10) & 0xFFFFFF // bytes 10-13 (24-bit address)
         };
     }
 
