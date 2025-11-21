@@ -10,6 +10,7 @@ using Diz.Core.export;
 using Diz.Core.model;
 using Diz.Core.util;
 using Diz.Cpu._65816;
+using Diz.Import.bsnes.tracelog;
 using JetBrains.Annotations;
 
 // NOTE: lots of these interfaces were created temporarily for major refactoring.
@@ -94,6 +95,8 @@ public interface ITraceLogImporters
     void ImportBizHawkCdl(string filename);
     long ImportBsnesUsageMap(string fileName);
     long ImportBsnesTraceLogs(string[] fileNames);
+    long ImportBsnesTraceLogsBinary(IEnumerable<string> filenames, BsnesTraceLogCaptureController.TraceLogCaptureSettings workItemCaptureSettings);
+    long ImportMesenTraceLogsBinary(IEnumerable<string> filenames, BsnesTraceLogCaptureController.TraceLogCaptureSettings workItemCaptureSettings);
     Task<long> ImportMesenTraceLive(string host, int port, CancellationToken cancellationToken);
 }
 
