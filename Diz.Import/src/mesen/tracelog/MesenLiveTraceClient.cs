@@ -166,6 +166,62 @@ public class MesenLiveTraceClient : IDisposable
     }
 
     /// <summary>
+    /// Send configuration to Mesen2 server to enable/configure trace streaming.
+    /// CRITICAL: This must be sent after handshake or NO traces will be sent!
+    /// </summary>
+    public async Task<bool> SendConfigAsync(
+        bool enableExecTrace = true,
+        bool enableMemoryAccess = false,
+        bool enableCdlUpdates = true,
+        byte traceFrameInterval = 4,
+        ushort maxTracesPerFrame = 1000)
+    {
+        if (!IsConnected || _stream == null)
+            return false;
+
+        try
+        {
+            System.Diagnostics.Debug.WriteLine($"[DiztinGUIsh] Sending config: ExecTrace={enableExecTrace}, CDL={enableCdlUpdates}, Interval={traceFrameInterval}");
+
+            // Create config message (6 bytes total)
+            var configMessage = new MesenConfigStreamMessage
+            {
+                EnableExecTrace = (byte)(enableExecTrace ? 1 : 0),
+                EnableMemoryAccess = (byte)(enableMemoryAccess ? 1 : 0),
+                EnableCdlUpdates = (byte)(enableCdlUpdates ? 1 : 0),
+                TraceFrameInterval = traceFrameInterval,
+                MaxTracesPerFrame = maxTracesPerFrame
+            };
+
+            // Build binary payload (6 bytes)
+            var payload = new byte[6];
+            payload[0] = configMessage.EnableExecTrace;
+            payload[1] = configMessage.EnableMemoryAccess;
+            payload[2] = configMessage.EnableCdlUpdates;
+            payload[3] = configMessage.TraceFrameInterval;
+            BitConverter.GetBytes(configMessage.MaxTracesPerFrame).CopyTo(payload, 4);
+
+            // Build message header (5 bytes: type + length)
+            var header = new byte[5];
+            header[0] = (byte)MesenMessageType.ConfigStream;
+            BitConverter.GetBytes((uint)payload.Length).CopyTo(header, 1);
+
+            // Send header + payload
+            await _stream.WriteAsync(header.Concat(payload).ToArray());
+            await _stream.FlushAsync();
+
+            System.Diagnostics.Debug.WriteLine($"[DiztinGUIsh] Config sent successfully");
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DiztinGUIsh] Failed to send config: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Main message receive loop. Runs on background thread.
     /// </summary>
     private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
