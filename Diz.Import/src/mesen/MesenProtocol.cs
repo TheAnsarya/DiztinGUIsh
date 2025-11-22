@@ -77,6 +77,23 @@ public struct MesenHandshakeAckMessage
 }
 
 /// <summary>
+/// Configuration message (DiztinGUIsh → Mesen2).
+/// This EXACTLY matches the C++ ConfigStreamMessage struct (6 bytes total).
+/// Sent after handshake to enable/configure trace streaming.
+/// </summary>
+public struct MesenConfigStreamMessage
+{
+    public byte EnableExecTrace;       // uint8_t 0/1 (1 byte)
+    public byte EnableMemoryAccess;    // uint8_t 0/1 (1 byte)
+    public byte EnableCdlUpdates;      // uint8_t 0/1 (1 byte)
+    public byte TraceFrameInterval;    // uint8_t Send every N frames (1-60) (1 byte)
+    public ushort MaxTracesPerFrame;   // uint16_t Max traces per batch (2 bytes)
+    
+    public override string ToString() => 
+        $"Config: ExecTrace={EnableExecTrace}, MemAccess={EnableMemoryAccess}, CDL={EnableCdlUpdates}, Interval={TraceFrameInterval}, MaxTraces={MaxTracesPerFrame}";
+}
+
+/// <summary>
 /// CPU execution trace entry.
 /// This EXACTLY matches the C++ ExecTraceEntry struct (15 bytes total).
 /// Sent as part of ExecTraceBatch messages.
