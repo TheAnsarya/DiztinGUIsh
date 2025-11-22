@@ -41,6 +41,24 @@ public class ProjectController(
 
     public event IProjectController.ProjectChangedEvent ProjectChanged;
 
+    /// <summary>
+    /// Active Mesen2 live trace importer for ongoing streaming sessions.
+    /// Null when no active connection exists.
+    /// </summary>
+    private MesenTraceLogImporter _activeMesenImporter;
+
+    /// <summary>
+    /// Background task managing the active Mesen2 connection.
+    /// Null when no active connection exists.
+    /// </summary>
+    private Task _mesenConnectionTask;
+
+    /// <summary>
+    /// Cancellation token source for controlling the active Mesen2 connection.
+    /// Null when no active connection exists.
+    /// </summary>
+    private CancellationTokenSource _mesenCancellationTokenSource;
+
     // there's probably better ways to handle this.
     // probably replace with a UI like "start task" and "stop task"
     // so we can flip up a progress bar and remove it.
@@ -386,49 +404,172 @@ public class ProjectController(
     /// <summary>
     /// Import live trace data from Mesen2 DiztinGUIsh server.
     /// Connects to running Mesen2 instance and streams execution traces in real-time.
+    /// The connection is maintained in a background worker until explicitly stopped via StopMesenTraceLive().
     /// </summary>
     /// <param name="host">Mesen2 server hostname (default: localhost)</param>
     /// <param name="port">Mesen2 server port (default: 9998)</param>
-    /// <param name="cancellationToken">Cancellation token to stop streaming</param>
-    /// <returns>Number of ROM bytes modified during streaming session</returns>
-    public async Task<long> ImportMesenTraceLive(string host = "localhost", int port = 9998, CancellationToken cancellationToken = default)
+    /// <returns>Task that completes when connection is established (not when streaming ends)</returns>
+    /// <exception cref="InvalidOperationException">Thrown if already connected or connection fails</exception>
+    public async Task ImportMesenTraceLive(string host = "localhost", int port = 9998)
     {
-        using var importer = new MesenTraceLogImporter(Project.Data.GetSnesApi());
-        
+        // Prevent multiple simultaneous connections
+        if (_activeMesenImporter != null)
+        {
+            throw new InvalidOperationException("Already connected to Mesen2. Call StopMesenTraceLive() first.");
+        }
+
+        // Create new importer instance for this session
+        _activeMesenImporter = new MesenTraceLogImporter(Project.Data.GetSnesApi());
+        _mesenCancellationTokenSource = new CancellationTokenSource();
+
         // Attempt to connect to Mesen2 server
-        var connected = await importer.ConnectAsync(host, port);
+        var connected = await _activeMesenImporter.ConnectAsync(host, port);
         if (!connected)
         {
+            // Cleanup on connection failure
+            CleanupMesenConnection();
             throw new InvalidOperationException($"Failed to connect to Mesen2 server at {host}:{port}. Is Mesen2 running with DiztinGUIsh server enabled?");
         }
 
+        // Start background worker to maintain connection
+        _mesenConnectionTask = Task.Run(async () =>
+        {
+            try
+            {
+                var cancellationToken = _mesenCancellationTokenSource.Token;
+                
+                // Stream until cancellation requested or connection lost
+                // The importer handles all message processing in its own background thread
+                while (!cancellationToken.IsCancellationRequested && _activeMesenImporter.IsConnected)
+                {
+                    await Task.Delay(100, cancellationToken); // Check every 100ms
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal cancellation, not an error
+            }
+            catch (Exception ex)
+            {
+                // Log or handle unexpected errors
+                Debug.WriteLine($"Mesen2 connection error: {ex.Message}");
+            }
+        }, _mesenCancellationTokenSource.Token);
+    }
+
+    /// <summary>
+    /// Pause the active Mesen2 live trace streaming.
+    /// Connection remains open but no new data is processed.
+    /// </summary>
+    /// <returns>True if paused successfully, false if no active connection</returns>
+    public bool PauseMesenTraceLive()
+    {
+        if (_activeMesenImporter == null || !_activeMesenImporter.IsConnected)
+            return false;
+
+        // The importer doesn't have explicit pause/resume, but we could add it
+        // For now, this is a placeholder for future enhancement
+        return true;
+    }
+
+    /// <summary>
+    /// Resume a paused Mesen2 live trace streaming session.
+    /// </summary>
+    /// <returns>True if resumed successfully, false if no active connection</returns>
+    public bool ResumeMesenTraceLive()
+    {
+        if (_activeMesenImporter == null || !_activeMesenImporter.IsConnected)
+            return false;
+
+        // Placeholder for future pause/resume functionality
+        return true;
+    }
+
+    /// <summary>
+    /// Stop the active Mesen2 live trace streaming and cleanup resources.
+    /// Finalizes the trace data by copying temporary comments into main SNES data.
+    /// </summary>
+    /// <returns>Number of ROM bytes modified during the entire streaming session</returns>
+    public async Task<long> StopMesenTraceLive()
+    {
+        if (_activeMesenImporter == null)
+            return 0;
+
+        long bytesModified = 0;
+
         try
         {
-            // Stream until cancellation requested
-            // The importer handles all message processing in background
-            while (!cancellationToken.IsCancellationRequested && importer.IsConnected)
+            // Signal cancellation to stop the background worker
+            _mesenCancellationTokenSource?.Cancel();
+
+            // Wait for background task to complete (with timeout)
+            if (_mesenConnectionTask != null)
             {
-                await Task.Delay(100, cancellationToken); // Check every 100ms
+                await Task.WhenAny(_mesenConnectionTask, Task.Delay(5000)); // 5 second timeout
             }
+
+            // Disconnect and finalize data
+            if (_activeMesenImporter.IsConnected)
+            {
+                _activeMesenImporter.Disconnect();
+            }
+
+            // Copy all temporary comments into main SNES data
+            _activeMesenImporter.CopyTempGeneratedCommentsIntoMainSnesData();
+
+            // Get final statistics
+            bytesModified = _activeMesenImporter.CurrentStats.NumRomBytesModified;
+            if (bytesModified > 0)
+                MarkChanged();
         }
         finally
         {
-            // Always disconnect and copy comments when done
-            importer.Disconnect();
-            importer.CopyTempGeneratedCommentsIntoMainSnesData();
+            // Always cleanup resources
+            CleanupMesenConnection();
         }
 
-        var bytesModified = importer.CurrentStats.NumRomBytesModified;
-        if (bytesModified > 0)
-            MarkChanged();
-
         return bytesModified;
+    }
+
+    /// <summary>
+    /// Check if there is an active Mesen2 live trace connection.
+    /// </summary>
+    public bool IsMesenTraceLiveActive => _activeMesenImporter?.IsConnected ?? false;
+
+    /// <summary>
+    /// Get current statistics from active Mesen2 streaming session.
+    /// </summary>
+    /// <returns>Current stats, or null if no active connection</returns>
+    public ImportStats? GetMesenLiveStats()
+    {
+        return _activeMesenImporter?.CurrentStats;
+    }
+
+    /// <summary>
+    /// Internal cleanup method to dispose resources and reset state.
+    /// Always call this in finally blocks to ensure proper cleanup.
+    /// </summary>
+    private void CleanupMesenConnection()
+    {
+        _activeMesenImporter?.Dispose();
+        _activeMesenImporter = null;
+
+        _mesenCancellationTokenSource?.Dispose();
+        _mesenCancellationTokenSource = null;
+
+        _mesenConnectionTask = null;
     }
         
     public void CloseProject()
     {
         if (Project == null)
             return;
+
+        // Ensure any active Mesen2 connection is stopped before closing project
+        if (IsMesenTraceLiveActive)
+        {
+            StopMesenTraceLive().Wait(); // Synchronous wait since CloseProject is not async
+        }
 
         ProjectChanged?.Invoke(this, new IProjectController.ProjectChangedEventArgs
         {

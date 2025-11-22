@@ -97,7 +97,11 @@ public interface ITraceLogImporters
     long ImportBsnesTraceLogs(string[] fileNames);
     long ImportBsnesTraceLogsBinary(IEnumerable<string> filenames, BsnesTraceLogCaptureController.TraceLogCaptureSettings workItemCaptureSettings);
     long ImportMesenTraceLogsBinary(IEnumerable<string> filenames, BsnesTraceLogCaptureController.TraceLogCaptureSettings workItemCaptureSettings);
-    Task<long> ImportMesenTraceLive(string host, int port, CancellationToken cancellationToken);
+    
+    // Mesen2 live streaming uses managed worker pattern - cancellation handled via StopMesenTraceLive()
+    Task ImportMesenTraceLive(string host = "localhost", int port = 9998);
+    Task<long> StopMesenTraceLive();
+    bool IsMesenTraceLiveActive { get; }
 }
 
 public interface IProjectNavigation
