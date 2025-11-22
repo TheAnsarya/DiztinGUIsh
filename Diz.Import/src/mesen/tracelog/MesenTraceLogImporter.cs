@@ -119,9 +119,26 @@ public class MesenTraceLogImporter : IDisposable
         // Validate ROM if we have one loaded
         var romCompatible = _romSizeCached <= 0 || handshake.RomSize == _romSizeCached;
         
-        // Send acknowledgment 
+        // Send acknowledgment AND configuration
         var accepted = protocolCompatible && romCompatible;
-        _ = Task.Run(async () => await _client.SendHandshakeAckAsync(accepted, "DiztinGUIsh v2.0"));
+        _ = Task.Run(async () =>
+        {
+            await _client.SendHandshakeAckAsync(accepted, "DiztinGUIsh v2.0");
+            
+            // CRITICAL: Send config to enable trace streaming!
+            // Without this, Mesen2 will NOT send any trace data.
+            if (accepted)
+            {
+                System.Diagnostics.Debug.WriteLine("[DiztinGUIsh] Handshake accepted, sending config to enable trace streaming...");
+                await _client.SendConfigAsync(
+                    enableExecTrace: true,
+                    enableMemoryAccess: false,
+                    enableCdlUpdates: true,
+                    traceFrameInterval: 4,    // Send every 4 frames (15 Hz)
+                    maxTracesPerFrame: 1000   // Max 1000 traces per batch
+                );
+            }
+        });
         
         if (!accepted)
         {
@@ -134,6 +151,8 @@ public class MesenTraceLogImporter : IDisposable
     /// </summary>
     private void OnExecTraceReceived(object? sender, MesenExecTraceMessage trace)
     {
+        System.Diagnostics.Debug.WriteLine($"[DiztinGUIsh] *** TRACE RECEIVED: PC=${trace.PC:X6}, Opcode=${trace.Opcode:X2} ***");
+        
         // Convert Mesen2 address to ROM offset
         var romOffset = ConvertSnesAddressToRomOffset(trace.PC);
         if (romOffset < 0 || romOffset >= _romSizeCached)
