@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Diz.Core.Interfaces;
 using Diz.Cpu._65816;
+using Diz.Import.Mesen;
 
 namespace Diz.Import.mesen.tracelog;
 
@@ -111,25 +112,30 @@ public class MesenTraceLogImporter : IDisposable
     /// </summary>
     private void OnHandshakeReceived(object? sender, MesenHandshakeMessage handshake)
     {
+        MesenConnectionLogger.Log("IMPORTER", $" *** HANDSHAKE RECEIVED: Protocol={handshake.ProtocolVersionMajor}.{handshake.ProtocolVersionMinor}, ROM='{handshake.RomName}', Size={handshake.RomSize} ***");
+        
         LastHandshake = handshake;
         
         // Validate protocol compatibility
         var protocolCompatible = handshake.ProtocolVersionMajor == 1 && handshake.ProtocolVersionMinor == 0;
         
-        // Validate ROM if we have one loaded
-        var romCompatible = _romSizeCached <= 0 || handshake.RomSize == _romSizeCached;
+        // Validate ROM - accept if either side reports size 0 (unknown) or sizes match
+        var romCompatible = _romSizeCached <= 0 || handshake.RomSize <= 0 || handshake.RomSize == _romSizeCached;
+        
+        MesenConnectionLogger.Log("IMPORTER", $" Handshake validation: Protocol compatible={protocolCompatible}, ROM compatible={romCompatible} (Local ROM size: {_romSizeCached}, Server ROM size: {handshake.RomSize})");
         
         // Send acknowledgment AND configuration
         var accepted = protocolCompatible && romCompatible;
         _ = Task.Run(async () =>
         {
+            MesenConnectionLogger.Log("IMPORTER", $" Sending HandshakeAck (accepted={accepted})...");
             await _client.SendHandshakeAckAsync(accepted, "DiztinGUIsh v2.0");
             
             // CRITICAL: Send config to enable trace streaming!
             // Without this, Mesen2 will NOT send any trace data.
             if (accepted)
             {
-                System.Diagnostics.Debug.WriteLine("[DiztinGUIsh] Handshake accepted, sending config to enable trace streaming...");
+                MesenConnectionLogger.Log("IMPORTER", " Handshake accepted, sending config to enable trace streaming...");
                 await _client.SendConfigAsync(
                     enableExecTrace: true,
                     enableMemoryAccess: false,
@@ -137,13 +143,13 @@ public class MesenTraceLogImporter : IDisposable
                     traceFrameInterval: 4,    // Send every 4 frames (15 Hz)
                     maxTracesPerFrame: 1000   // Max 1000 traces per batch
                 );
+                MesenConnectionLogger.Log("IMPORTER", " *** HANDSHAKE COMPLETE - STREAMING ENABLED ***");
+            }
+            else
+            {
+                MesenConnectionLogger.Log("IMPORTER", " !!! HANDSHAKE REJECTED - INCOMPATIBLE VERSION/ROM !!!");
             }
         });
-        
-        if (!accepted)
-        {
-            // Could raise an error event or disconnect
-        }
     }
 
     /// <summary>

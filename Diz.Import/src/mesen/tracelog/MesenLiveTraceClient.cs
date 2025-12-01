@@ -2,6 +2,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 using System.Linq;
+using Diz.Import.Mesen;
 
 namespace Diz.Import.mesen.tracelog;
 
@@ -60,33 +61,43 @@ public class MesenLiveTraceClient : IDisposable
 
         try
         {
-            Console.WriteLine($"[MesenLiveTraceClient] ConnectAsync starting - Host: {host}, Port: {port}, Timeout: {ConnectTimeoutMs}ms");
+            MesenConnectionLogger.Log("CLIENT",$" ConnectAsync starting - Host: {host}, Port: {port}, Timeout: {ConnectTimeoutMs}ms");
             _tcpClient = new TcpClient();
             _tcpClient.ReceiveTimeout = ReceiveTimeoutMs;
             
-            Console.WriteLine($"[MesenLiveTraceClient] TcpClient created, attempting connection...");
+            MesenConnectionLogger.Log("CLIENT",$" TcpClient created, attempting connection...");
             // Connect with timeout
             using var timeoutCts = new CancellationTokenSource(ConnectTimeoutMs);
             await _tcpClient.ConnectAsync(host, port, timeoutCts.Token);
             
-            Console.WriteLine($"[MesenLiveTraceClient] Connection successful! Getting network stream...");
+            MesenConnectionLogger.Log("CLIENT",$" Connection successful! Getting network stream...");
             _stream = _tcpClient.GetStream();
+            
+            if (_stream == null)
+            {
+                MesenConnectionLogger.Log("CLIENT", " FATAL ERROR: GetStream() returned null!");
+                throw new InvalidOperationException("Failed to get network stream from TcpClient");
+            }
+            
+            MesenConnectionLogger.Log("CLIENT", $" Network stream obtained successfully");
             ConnectedHost = host;
             ConnectedPort = port;
             ConnectionTime = DateTime.Now;
             
-            Console.WriteLine($"[MesenLiveTraceClient] Starting receive loop...");
+            MesenConnectionLogger.Log("CLIENT",$" Starting receive loop...");
             // Start receive loop
             _cancellationTokenSource = new CancellationTokenSource();
             _receiveTask = ReceiveLoopAsync(_cancellationTokenSource.Token);
             
-            Console.WriteLine($"[MesenLiveTraceClient] ConnectAsync completed successfully!");
+            MesenConnectionLogger.Log("CLIENT",$" ConnectAsync completed successfully!");
+            MesenConnectionLogger.Log("CLIENT",$" *** CONNECTION ESTABLISHED: {host}:{port} ***");
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[MesenLiveTraceClient] EXCEPTION during connect: {ex.GetType().Name}: {ex.Message}");
-            Console.WriteLine($"[MesenLiveTraceClient] Stack trace: {ex.StackTrace}");
+            MesenConnectionLogger.Log("CLIENT",$" EXCEPTION during connect: {ex.GetType().Name}: {ex.Message}");
+            MesenConnectionLogger.Log("CLIENT",$" Stack trace: {ex.StackTrace}");
+            MesenConnectionLogger.Log("CLIENT",$" *** CONNECTION FAILED: {ex.Message} ***");
             CleanupConnection();
             return false;
         }
@@ -100,6 +111,9 @@ public class MesenLiveTraceClient : IDisposable
         if (!IsConnected)
             return;
 
+        MesenConnectionLogger.Log("CLIENT"," *** DISCONNECT CALLED ***");
+        MesenConnectionLogger.Log("CLIENT",$" Stack trace: {Environment.StackTrace}");
+        
         _cancellationTokenSource?.Cancel();
         CleanupConnection();
         Disconnected?.Invoke(this, EventArgs.Empty);
@@ -128,10 +142,15 @@ public class MesenLiveTraceClient : IDisposable
     public async Task<bool> SendHandshakeAckAsync(bool accepted = true, string clientName = "DiztinGUIsh")
     {
         if (!IsConnected || _stream == null)
+        {
+            MesenConnectionLogger.Log("CLIENT", " SendHandshakeAck FAILED: Not connected or no stream");
             return false;
+        }
 
         try
         {
+            MesenConnectionLogger.Log("CLIENT", $" Sending HandshakeAck: accepted={accepted}, clientName='{clientName}'");
+            
             // Create handshake ack message (69 bytes total)
             var ackMessage = new MesenHandshakeAckMessage
             {
@@ -154,13 +173,21 @@ public class MesenLiveTraceClient : IDisposable
             BitConverter.GetBytes((uint)payload.Length).CopyTo(header, 1);
 
             // Send header + payload
+            if (_stream == null)
+            {
+                MesenConnectionLogger.Log("CLIENT", " HandshakeAck FAILED: Stream became null before write");
+                return false;
+            }
+            
             await _stream.WriteAsync(header.Concat(payload).ToArray());
             await _stream.FlushAsync();
 
+            MesenConnectionLogger.Log("CLIENT", $" HandshakeAck sent successfully ({header.Length + payload.Length} bytes total)");
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            MesenConnectionLogger.Log("CLIENT", $" SendHandshakeAck EXCEPTION: {ex.Message}");
             return false;
         }
     }
@@ -181,7 +208,7 @@ public class MesenLiveTraceClient : IDisposable
 
         try
         {
-            System.Diagnostics.Debug.WriteLine($"[DiztinGUIsh] Sending config: ExecTrace={enableExecTrace}, CDL={enableCdlUpdates}, Interval={traceFrameInterval}");
+            MesenConnectionLogger.Log("CLIENT",$" Sending config: ExecTrace={enableExecTrace}, CDL={enableCdlUpdates}, Interval={traceFrameInterval}");
 
             // Create config message (6 bytes total)
             var configMessage = new MesenConfigStreamMessage
@@ -207,16 +234,22 @@ public class MesenLiveTraceClient : IDisposable
             BitConverter.GetBytes((uint)payload.Length).CopyTo(header, 1);
 
             // Send header + payload
+            if (_stream == null)
+            {
+                MesenConnectionLogger.Log("CLIENT", $" Config FAILED: Stream became null before write");
+                return false;
+            }
+            
             await _stream.WriteAsync(header.Concat(payload).ToArray());
             await _stream.FlushAsync();
 
-            System.Diagnostics.Debug.WriteLine($"[DiztinGUIsh] Config sent successfully");
+            MesenConnectionLogger.Log("CLIENT",$" Config sent successfully");
 
             return true;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[DiztinGUIsh] Failed to send config: {ex.Message}");
+            MesenConnectionLogger.Log("CLIENT",$" Failed to send config: {ex.Message}");
             return false;
         }
     }
@@ -226,6 +259,7 @@ public class MesenLiveTraceClient : IDisposable
     /// </summary>
     private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
     {
+        MesenConnectionLogger.Log("CLIENT"," *** RECEIVE LOOP STARTED ***");
         try
         {
             while (!cancellationToken.IsCancellationRequested && IsConnected)
@@ -233,7 +267,10 @@ public class MesenLiveTraceClient : IDisposable
                 // Read message header (5 bytes: type + length)
                 var headerBytes = await ReadExactBytesAsync(5, cancellationToken);
                 if (headerBytes == null)
+                {
+                    MesenConnectionLogger.Log("CLIENT"," *** CONNECTION CLOSED: ReadAsync returned 0 bytes (peer disconnected) ***");
                     break; // Connection closed
+                }
                 
                 var messageType = (MesenMessageType)headerBytes[0];
                 var messageLength = BitConverter.ToUInt32(headerBytes, 1);
@@ -244,7 +281,10 @@ public class MesenLiveTraceClient : IDisposable
                 {
                     payloadBytes = await ReadExactBytesAsync((int)messageLength, cancellationToken);
                     if (payloadBytes == null)
+                    {
+                        MesenConnectionLogger.Log("CLIENT"," *** CONNECTION CLOSED: Failed to read payload (peer disconnected) ***");
                         break; // Connection closed
+                    }
                 }
                 
                 // Update statistics
@@ -255,18 +295,23 @@ public class MesenLiveTraceClient : IDisposable
                 ProcessMessage(messageType, payloadBytes);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Expected when cancelling
+            MesenConnectionLogger.Log("CLIENT",$" *** RECEIVE LOOP CANCELED: {ex.Message} ***");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Connection error
+            MesenConnectionLogger.Log("CLIENT",$" *** RECEIVE LOOP ERROR: {ex.GetType().Name}: {ex.Message} ***");
+            MesenConnectionLogger.Log("CLIENT",$" Stack trace: {ex.StackTrace}");
         }
         finally
         {
+            MesenConnectionLogger.Log("CLIENT"," *** RECEIVE LOOP ENDED ***");
             if (IsConnected)
+            {
+                MesenConnectionLogger.Log("CLIENT"," *** CALLING DISCONNECT FROM RECEIVE LOOP ***");
                 Disconnect();
+            }
         }
     }
 
@@ -285,7 +330,10 @@ public class MesenLiveTraceClient : IDisposable
         {
             var bytesRead = await _stream.ReadAsync(buffer.AsMemory(totalRead, count - totalRead), cancellationToken);
             if (bytesRead == 0)
+            {
+                MesenConnectionLogger.Log("CLIENT",$" *** READ FAILED: Expected {count} bytes, got {totalRead} bytes, then 0 (connection closed by remote) ***");
                 return null; // Connection closed
+            }
             totalRead += bytesRead;
         }
 
@@ -310,11 +358,19 @@ public class MesenLiveTraceClient : IDisposable
                     break;
 
                 case MesenMessageType.ExecTrace:
-                case MesenMessageType.ExecTraceBatch:
-                    if (payload != null && payload.Length >= 15) // Expected trace entry size (15 bytes)
+                    // Single trace entry (15 bytes)
+                    if (payload != null && payload.Length >= 15)
                     {
                         var trace = ParseExecTraceMessage(payload);
                         ExecTraceReceived?.Invoke(this, trace);
+                    }
+                    break;
+
+                case MesenMessageType.ExecTraceBatch:
+                    // Batch of trace entries: 6-byte header + (entryCount × 15 bytes)
+                    if (payload != null && payload.Length >= 6)
+                    {
+                        ParseAndDispatchExecTraceBatch(payload);
                     }
                     break;
 
@@ -368,6 +424,44 @@ public class MesenLiveTraceClient : IDisposable
             RomSize = BitConverter.ToUInt32(data, 8),                   // bytes 8-11
             RomName = System.Text.Encoding.ASCII.GetString(data, 12, 256).TrimEnd('\0') // bytes 12-267
         };
+    }
+
+    /// <summary>
+    /// Parse and dispatch execution trace batch.
+    /// Matches C++ ExecTraceBatchMessage struct:
+    /// - uint32_t frameNumber (4 bytes)
+    /// - uint16_t entryCount (2 bytes)
+    /// - Followed by entryCount × ExecTraceEntry (15 bytes each)
+    /// </summary>
+    private void ParseAndDispatchExecTraceBatch(byte[] data)
+    {
+        if (data.Length < 6)
+            return;
+
+        // Parse batch header
+        var frameNumber = BitConverter.ToUInt32(data, 0);    // bytes 0-3
+        var entryCount = BitConverter.ToUInt16(data, 4);     // bytes 4-5
+
+        MesenConnectionLogger.Log("CLIENT",$" *** BATCH RECEIVED: Frame={frameNumber}, Entries={entryCount} ***");
+
+        // Verify payload size is correct
+        var expectedSize = 6 + (entryCount * 15);
+        if (data.Length < expectedSize)
+        {
+            MesenConnectionLogger.Log("CLIENT",$" WARNING: Batch size mismatch. Expected {expectedSize}, got {data.Length}");
+            return;
+        }
+
+        // Parse each trace entry and fire event
+        for (int i = 0; i < entryCount; i++)
+        {
+            var offset = 6 + (i * 15); // Skip 6-byte header, then 15 bytes per entry
+            var entryData = new byte[15];
+            Array.Copy(data, offset, entryData, 0, 15);
+
+            var trace = ParseExecTraceMessage(entryData);
+            ExecTraceReceived?.Invoke(this, trace);
+        }
     }
 
     /// <summary>
